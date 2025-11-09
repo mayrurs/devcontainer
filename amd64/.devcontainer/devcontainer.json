@@ -1,0 +1,71 @@
+{
+  "name": "Claude Code Sandbox",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "args": {
+      "CUDA_VERSION": "13.0.1",
+      "CUDA_DISTRO": "ubuntu24.04",
+      "CUDA_TYPE": "runtime",
+      "TZ": "${localEnv:TZ:Europe/Zurich}",
+      "CLAUDE_CODE_VERSION": "latest",
+      "NODE_VERSION": "20",
+      "USERNAME": "devuser",
+      "USER_UID": "1000",
+      "USER_GID": "1000",
+      "GIT_DELTA_VERSION": "0.18.2",
+      "ZSH_IN_DOCKER_VERSION": "1.2.0",
+      "DOTFILES_REPO": "mayrurs/.dotfiles",
+      "DOTFILES_REF": "main",
+      "LAZYVIM_REPO": "mayrurs/lazy-vim",
+      "LAZYVIM_REF": "main"
+    }
+  },
+  "runArgs": [
+    "--cap-add=NET_ADMIN",
+    "--cap-add=NET_RAW",
+    "--gpus=all",
+    "--runtime=nvidia"
+  ],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "anthropic.claude-code",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "eamodio.gitlens"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.codeActionsOnSave": {
+          "source.fixAll.eslint": "explicit"
+        },
+        "terminal.integrated.defaultProfile.linux": "zsh",
+        "terminal.integrated.fontFamily": "MesloLGS NF",
+        "terminal.integrated.fontSize": 13,
+        "terminal.integrated.profiles.linux": {
+          "bash": {
+            "path": "bash",
+            "icon": "terminal-bash"
+          },
+          "zsh": {
+            "path": "zsh"
+          }
+        }
+      }
+    }
+  },
+  "remoteUser": "devuser",
+  "mounts": [
+    "source=devcontainer-data-${devcontainerId},target=/home/devuser,type=volume"
+  ],
+  "containerEnv": {
+    "NODE_OPTIONS": "--max-old-space-size=4096",
+    "CLAUDE_CONFIG_DIR": "/home/devuser/.claude",
+    "POWERLEVEL9K_DISABLE_GITSTATUS": "true"
+  },
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
+  "workspaceFolder": "/workspace",
+  "postStartCommand": "sudo /usr/local/bin/init-firewall.sh",
+  "waitFor": "postStartCommand"
+}

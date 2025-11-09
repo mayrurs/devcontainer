@@ -1,0 +1,49 @@
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        TZ: ${TZ:-Europe/Zurich}
+        CLAUDE_CODE_VERSION: ${CLAUDE_CODE_VERSION:-latest}
+        NODE_VERSION: ${NODE_VERSION:-20}
+        GIT_DELTA_VERSION: ${GIT_DELTA_VERSION:-0.18.2}
+        ZSH_IN_DOCKER_VERSION: ${ZSH_IN_DOCKER_VERSION:-1.2.0}
+        DOTFILES_REPO: ${DOTFILES_REPO:-mayrurs/.dotfiles}
+        DOTFILES_REF: ${DOTFILES_REF:-main}
+        LAZYVIM_REPO: ${LAZYVIM_REPO:-mayrurs/lazy-vim}
+        LAZYVIM_REF: ${LAZYVIM_REF:-main}
+    tty: true
+    stdin_open: true
+    working_dir: /workspace
+    environment:
+      NODE_OPTIONS: --max-old-space-size=4096
+      CLAUDE_CONFIG_DIR: /home/devuser/.claude
+      POWERLEVEL9K_DISABLE_GITSTATUS: "true"
+      DEVCONTAINER: "true"
+      TZ: ${TZ:-America/Los_Angeles}
+      # Ollama configuration
+      OLLAMA_HOST: ${OLLAMA_HOST:-http://host.docker.internal:11434}
+    volumes:
+      # Mount workspace (parent directory of .devcontainer)
+      - ${WORKSPACE_DIR:-..}:/workspace
+      # Single persistent volume for all user data (history, config, cache, etc.)
+      - devcontainer-data:/home/devuser
+      # Optional: Mount SSH for git operations
+      - ${SSH_AUTH_SOCK:-/dev/null}:/ssh-agent
+      - ${HOME}/.ssh/known_hosts:/home/devuser/.ssh/known_hosts:ro
+    networks:
+      - default
+    # Use host.docker.internal to access host services (like Ollama)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+networks:
+  default:
+
+volumes:
+  # Single volume for all persistent user data
+  # Volume is prefixed with project directory name automatically
+  # This makes it per-project, similar to VS Code's ${devcontainerId}
+  # To use global volume instead, add: name: devcontainer-data
+  devcontainer-data:
