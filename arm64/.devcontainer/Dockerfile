@@ -6,6 +6,7 @@ ENV TZ="$TZ"
 
 ARG CLAUDE_CODE_VERSION=latest
 ARG NODE_VERSION=20
+ARG GO_VERSION=1.23.4
 
 # Define user configuration as build arguments
 ARG USERNAME=devuser
@@ -60,6 +61,25 @@ RUN set -eux; \
   curl -fLO https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Italic.ttf; \
   curl -fLO https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Bold%20Italic.ttf; \
   fc-cache -fv
+
+# Install Go (supports both amd64 and arm64)
+RUN set -eux; \
+  ARCH=$(dpkg --print-architecture); \
+  if [ "$ARCH" = "amd64" ]; then \
+    GO_ARCH="amd64"; \
+  elif [ "$ARCH" = "arm64" ]; then \
+    GO_ARCH="arm64"; \
+  else \
+    echo "Unsupported architecture: $ARCH" && exit 1; \
+  fi; \
+  curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-${GO_ARCH}.tar.gz" -o go.tar.gz; \
+  rm -rf /usr/local/go; \
+  tar -C /usr/local -xzf go.tar.gz; \
+  rm go.tar.gz; \
+  /usr/local/go/bin/go version
+
+# Set Go environment variables (as root, before user creation)
+ENV PATH="/usr/local/go/bin:${PATH}"
 
 # Install latest Neovim (supports both amd64 and arm64)
 RUN set -eux; \
@@ -134,6 +154,12 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
   mv /root/.local/bin/uvx /usr/local/bin/uvx && \
   uv --version
 
+# Install Boot.dev CLI as root to /usr/local/bin (https://github.com/bootdotdev/bootdev)
+# Config will be stored in ~/.bootdev.yaml (persisted in the volume)
+RUN export GOBIN=/usr/local/bin && \
+  /usr/local/go/bin/go install github.com/bootdotdev/bootdev@latest && \
+  bootdev --version
+
 # Set up non-root user
 USER $USERNAME
 
@@ -145,8 +171,8 @@ ENV PATH=$PATH:/usr/local/share/npm-global/bin
 ENV SHELL=/bin/zsh
 
 # Set the default editor and visual
-ENV EDITOR=nano
-ENV VISUAL=nano
+ENV EDITOR=nvim
+ENV VISUAL=nvim
 
 # Default powerline10k theme
 ARG ZSH_IN_DOCKER_VERSION=1.2.0
@@ -162,7 +188,8 @@ RUN sh -c "$(wget -O- https://github.com/deluan/zsh-in-docker/releases/download/
 
 # Create .zshenv to ensure environment variables are always set early
 RUN echo 'export NPM_CONFIG_PREFIX=/usr/local/share/npm-global' > /home/$USERNAME/.zshenv && \
-  echo 'export PATH=$NPM_CONFIG_PREFIX/bin:$PATH' >> /home/$USERNAME/.zshenv && \
+  echo 'export GOPATH=$HOME/go' >> /home/$USERNAME/.zshenv && \
+  echo 'export PATH=/usr/local/go/bin:$GOPATH/bin:$NPM_CONFIG_PREFIX/bin:$PATH' >> /home/$USERNAME/.zshenv && \
   chown $USERNAME:$USERNAME /home/$USERNAME/.zshenv
 
 # Configure dotfiles and LazyVim
